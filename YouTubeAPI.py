@@ -15,13 +15,19 @@ import googleapiclient.errors
 class YouTubeAPI:
 
 	def __init__(self):
-		self.YouTube = None
+		self.YouTube = None # Set in function set_youtube_object
+		self.set_youtube_object()
+
+
+
+	def set_youtube_object(self):
 		try:
 			with open("YouTube.Object", "rb") as f:
 				self.YouTube = pickle.load(f)
 		except:
-			pass
+			return self.YouTube
 
+		# retreive Youtube object from disk cache
 		if str(type(self.YouTube)) == "<class 'googleapiclient.discovery.Resource'>":
 			return
 
@@ -42,7 +48,10 @@ class YouTubeAPI:
 		with open("YouTube.Object", "wb") as f:
 			pickle.dump(self.YouTube, f, pickle.HIGHEST_PROTOCOL)
 
+		return self.YouTube
+
 	def getLiveChatId(self):
+		# [TODO] optimize: not necesssary to call youtube api to live chat id always
 		request = self.YouTube.liveBroadcasts().list(
 			part="snippet",
 			broadcastStatus="active",
@@ -50,26 +59,31 @@ class YouTubeAPI:
 		)
 		response = request.execute()
 
-		return response["items"][0]["snippet"]["liveChatId"]
+		try:
+			self.live_chat_id = response["items"][0]["snippet"]["liveChatId"]
+		except:
+			# Mostly Stream offline
+			self.live_chat_id = None
+
+		return self.live_chat_id
 		
 	def get_live_chat_messages(self):
 		live_chat_id = self.getLiveChatId()
 
-		request = self.YouTube.liveChatMessages(
+		request = self.YouTube.liveChatMessages().list(
 			liveChatId=live_chat_id,
-        	part="snippet"
-		).list()
+			part="snippet"
+		)
 		response = request.execute()
 
 		messages = []
 		for item in response["items"]:
 			messages.append(item["snippet"]["displayMessage"])
 
-		print(messages)
-
 		return messages
 
-	def send_message(self, live_chat_id, message):
+	def send_message(self, message):
+		live_chat_id = self.getLiveChatId()
 		request = self.YouTube.liveChatMessages().insert(
 			part="snippet",
 			body={
@@ -77,32 +91,38 @@ class YouTubeAPI:
 				"liveChatId": live_chat_id,
 				"type": "textMessageEvent",
 				"textMessageDetails": {
-				"messageText": message
+					"messageText": message
 				}
 				}
 			}
 		)
 		response = request.execute()
 
+	def get_health_status(self):
+		request = self.YouTube.liveStreams().list(
+			part="snippet,cdn,contentDetails,status",
+			mine=True
+		)
+		response = request.execute()
+
+		print(response)
+
 # Unit testing
 def main():
 	youtube_obj = YouTubeAPI()
-	live_chat_id = youtube_obj.getLiveChatId()
-	messages = [
-		"Hi",
-		"Hello",
-		"Oi",
-		"Salut",
-		"Privet",
-		"Namaste",
-		"Salve"
-		"Welcome Brawlers :)",
-		"SUBSCRIBE and stay connected :D"
-	]
 
-	# messages = [""]
-	for message in messages:
-		youtube_obj.send_message(live_chat_id, message)
+	youtube_obj.get_health_status()
+	# live_chat_id = youtube_obj.getLiveChatId()
+
+	# print(youtube_obj.get_live_chat_messages())
+
+	# welcome_message = \
+	# 	"█▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█ "\
+	# 	"█░░╦─╦╔╗╦─╔╗╔╗╔╦╗╔╗░░█ "\
+	# 	"█░░║║║╠─║─║─║║║║║╠─░░█ "\
+	# 	"█░░╚╩╝╚╝╚╝╚╝╚╝╩─╩╚╝░░█ "\
+	# 	"█▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄█"
+	# print(youtube_obj.send_message(welcome_message))
 	
 
 if __name__ == "__main__":

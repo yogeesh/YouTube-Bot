@@ -15,9 +15,9 @@ class RunJob:
             "Hello",
             "Oi",
             "Salut",
-            "Privet",
+            "Привет",
             "Namaste",
-            "Salve"
+            "Salve",
             "Welcome Brawlers :)",
             "SUBSCRIBE and stay connected :D"
         ]
@@ -32,7 +32,10 @@ class RunJob:
         schedule.every(2).hours.do(self.welcome_message_every_hour)
 
         while True:
-            schedule.run_pending()
+            try:
+                schedule.run_pending()
+            except Exception as e:
+                print("[Error] Expection : \n %s"%e)
             print("[Hold] ...")
             time.sleep(60)
 
